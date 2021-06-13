@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	oslog "log"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -39,6 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -255,6 +258,17 @@ func init() {
 }
 
 func main() {
+	// parser: log setup
+	oslog.SetOutput(&lumberjack.Logger{
+		Filename:   "/home/phu/code/parser/go-ethereum/build/bin/foo.log",
+		MaxSize:    1, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28,    //days
+		Compress:   false, // disabled by default
+	})
+	oslog.SetFlags(0)
+	oslog.Print("log 1")
+
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
