@@ -17,6 +17,8 @@
 package core
 
 import (
+	"bytes"
+	"encoding/hex"
 	"errors"
 	"math"
 	"math/big"
@@ -32,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/parser"
 )
 
 const (
@@ -823,6 +826,11 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 		}
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
+		// parser: write tx log here
+		buf := new(bytes.Buffer)
+		tx.EncodeRLP(buf)
+		rplHex := hex.EncodeToString(buf.Bytes())
+		parser.Receipt.Info(rplHex)
 	}
 	if len(news) == 0 {
 		return errs

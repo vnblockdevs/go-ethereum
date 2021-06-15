@@ -25,8 +25,6 @@ import (
 	"strings"
 	"time"
 
-	oslog "log"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -41,7 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	"gopkg.in/natefinch/lumberjack.v2"
+	"github.com/ethereum/go-ethereum/parser"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -200,6 +198,13 @@ var (
 		utils.MetricsInfluxDBPasswordFlag,
 		utils.MetricsInfluxDBTagsFlag,
 	}
+
+	parserFlags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "parser.output",
+			Usage: "Define the output path of parser log",
+		},
+	}
 )
 
 func init() {
@@ -246,8 +251,10 @@ func init() {
 	app.Flags = append(app.Flags, consoleFlags...)
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Flags = append(app.Flags, metricsFlags...)
+	app.Flags = append(app.Flags, parserFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
+		parserSetup(ctx)
 		return debug.Setup(ctx)
 	}
 	app.After = func(ctx *cli.Context) error {
@@ -257,18 +264,17 @@ func init() {
 	}
 }
 
-func main() {
+func parserSetup(ctx *cli.Context) {
 	// parser: log setup
-	oslog.SetOutput(&lumberjack.Logger{
-		Filename:   "/home/phu/code/parser/go-ethereum/build/bin/foo.log",
-		MaxSize:    1, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28,    //days
-		Compress:   false, // disabled by default
-	})
-	oslog.SetFlags(0)
-	oslog.Print("log 1")
+	dirpath := ctx.String(utils.DataDirFlag.Name)
+	outputPath := ctx.String(parserFlags[0].GetName())
+	if len(outputPath) > 0 {
+		dirpath = outputPath
+	}
+	parser.Init(dirpath)
+}
 
+func main() {
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

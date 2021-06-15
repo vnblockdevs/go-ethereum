@@ -18,6 +18,7 @@
 package core
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -27,6 +28,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/parser"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
@@ -1471,6 +1474,26 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if err := blockBatch.Write(); err != nil {
 		log.Crit("Failed to write block into disk", "err", err)
 	}
+	// parser: write block info here
+
+	// Write block
+	blockBytes, _ := rlp.EncodeToBytes(block)
+	rplHex := hex.EncodeToString(blockBytes)
+	parser.Block.Info(rplHex)
+
+	// Write receipts
+	for _, r := range receipts {
+		pr := parser.CopyReceipt(r)
+		buf, err := rlp.EncodeToBytes(pr)
+		if err != nil {
+			log.Crit("Parser: can not encode receipt ", "err", err)
+			continue
+		}
+		rplHex := hex.EncodeToString(buf)
+		parser.Receipt.Info(rplHex)
+
+	}
+
 	// Commit all cached state changes into underlying memory database.
 	root, err := state.Commit(bc.chainConfig.IsEIP158(block.Number()))
 	if err != nil {
@@ -2185,6 +2208,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		if newBlock == nil {
 			return fmt.Errorf("invalid new chain")
 		}
+		// parser: write log here to remove old block
 	}
 	// Ensure the user sees large reorgs
 	if len(oldChain) > 0 && len(newChain) > 0 {
@@ -2238,9 +2262,11 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	// networks where performance is not an issue either way.
 	if len(deletedLogs) > 0 {
 		bc.rmLogsFeed.Send(RemovedLogsEvent{mergeLogs(deletedLogs, true)})
+		// parser: write log here
 	}
 	if len(rebirthLogs) > 0 {
 		bc.logsFeed.Send(mergeLogs(rebirthLogs, false))
+		// parser: write log here
 	}
 	if len(oldChain) > 0 {
 		for i := len(oldChain) - 1; i >= 0; i-- {
