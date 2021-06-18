@@ -30,7 +30,8 @@ type ParserReceipt struct {
 	// transaction corresponding to this receipt.
 	BlockHash        common.Hash `json:"blockHash,omitempty"`
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
-	TransactionIndex uint        `json:"transactionIndex"`
+	BlockTime        uint64
+	TransactionIndex uint `json:"transactionIndex"`
 }
 
 func CopyReceipt(r *ethTypes.Receipt) *ParserReceipt {

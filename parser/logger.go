@@ -5,16 +5,16 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var Block = logging.MustGetLogger("blocks")
-var Txs = logging.MustGetLogger("txs")
+// var Block = logging.MustGetLogger("blocks")
+// var Txs = logging.MustGetLogger("txs")
 var Receipt = logging.MustGetLogger("txs")
 
 func Init(dirpath string) {
-	blockPath := dirpath + "/blocks.log"
-	txPath := dirpath + "/txs.log"
+	// blockPath := dirpath + "/blocks.log"
+	// txPath := dirpath + "/txs.log"
 	receiptPath := dirpath + "/receipts.log"
-	initLogger(blockPath, Block)
-	initLogger(txPath, Txs)
+	// initLogger(blockPath, Block)
+	// initLogger(txPath, Txs)
 	initLogger(receiptPath, Receipt)
 }
 

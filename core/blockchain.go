@@ -1223,6 +1223,10 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			// Flush data into ancient database.
 			size += rawdb.WriteAncientBlock(bc.db, block, receiptChain[i], bc.GetTd(block.Hash(), block.NumberU64()))
 
+			// parser: ancient block
+			parserWriteBlock(block)
+			parserWriteBlankReceipts(bc, block, receiptChain[i])
+
 			// Write tx indices if any condition is satisfied:
 			// * If user requires to reserve all tx indices(txlookuplimit=0)
 			// * If all ancient tx indices are required to be reserved(txlookuplimit is even higher than ancientlimit)
@@ -1322,6 +1326,24 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			rawdb.WriteBody(batch, block.Hash(), block.NumberU64(), block.Body())
 			rawdb.WriteReceipts(batch, block.Hash(), block.NumberU64(), receiptChain[i])
 			rawdb.WriteTxLookupEntriesByBlock(batch, block) // Always write tx indices for live blocks, we assume they are needed
+
+			// parser: write log for fastsync
+
+			for _, receipt := range receiptChain[i] {
+				fmt.Println("# ---- ", receipt.Status)
+				fmt.Println("# ---- ", receipt.Logs)
+				fmt.Println("# ---- ", receipt.CumulativeGasUsed)
+
+				fmt.Println("# ---- ", receipt.GasUsed)
+				fmt.Println("# ---- ", receipt.TxHash)
+				fmt.Println("# ---- ", receipt.ContractAddress)
+
+				fmt.Println("# ---- ", receipt.BlockHash)
+				fmt.Println("# ---- ", receipt.BlockNumber)
+				fmt.Println("# ---- ", receipt.TransactionIndex)
+			}
+			parserWriteBlock(block)
+			parserWriteBlankReceipts(bc, block, receiptChain[i])
 
 			// Write everything belongs to the blocks into the database. So that
 			// we can ensure all components of body is completed(body, receipts,
@@ -1475,24 +1497,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		log.Crit("Failed to write block into disk", "err", err)
 	}
 	// parser: write block info here
-
-	// Write block
-	blockBytes, _ := rlp.EncodeToBytes(block)
-	rplHex := hex.EncodeToString(blockBytes)
-	parser.Block.Info(rplHex)
-
-	// Write receipts
-	for _, r := range receipts {
-		pr := parser.CopyReceipt(r)
-		buf, err := rlp.EncodeToBytes(pr)
-		if err != nil {
-			log.Crit("Parser: can not encode receipt ", "err", err)
-			continue
-		}
-		rplHex := hex.EncodeToString(buf)
-		parser.Receipt.Info(rplHex)
-
-	}
+	parserWriteBlock(block)
+	parserWriteReceipts(block.Time(), receipts)
 
 	// Commit all cached state changes into underlying memory database.
 	root, err := state.Commit(bc.chainConfig.IsEIP158(block.Number()))
@@ -2535,4 +2541,31 @@ func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscript
 // block processing has started while false means it has stopped.
 func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscription {
 	return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
+}
+
+func parserWriteBlock(block *types.Block) {
+	// blockBytes, _ := rlp.EncodeToBytes(block)
+	// rplHex := hex.EncodeToString(blockBytes)
+	// parser.Block.Info(rplHex)
+}
+
+func parserWriteReceipts(blockTime uint64, receipts []*types.Receipt) {
+	// Write receipts
+	for _, r := range receipts {
+		pr := parser.CopyReceipt(r)
+		buf, err := rlp.EncodeToBytes(pr)
+		if err != nil {
+			log.Crit("Parser: can not encode receipt ", "err", err)
+			continue
+		}
+		pr.BlockTime = blockTime
+		rplReceiptHex := hex.EncodeToString(buf)
+		parser.Receipt.Info(rplReceiptHex)
+	}
+}
+
+func parserWriteBlankReceipts(bc *BlockChain, block *types.Block, receipts types.Receipts) {
+	// Perfomance issue for derive fieds
+	receipts.DeriveFields(bc.chainConfig, block.Hash(), block.NumberU64(), block.Transactions())
+	parserWriteReceipts(block.Time(), receipts)
 }
